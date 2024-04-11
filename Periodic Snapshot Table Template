@@ -1,0 +1,26 @@
+```sql
+-- Create the Periodic Snapshot Fact Table
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WeeklyInventorySnapshots')
+BEGIN
+    CREATE TABLE WeeklyInventorySnapshots (
+        SnapshotDate DATE,
+        ProductID INT,
+        LocationID INT,
+        InventoryCount INT,
+        CONSTRAINT PK_WeeklyInventory PRIMARY KEY (SnapshotDate, ProductID, LocationID)
+    );
+END;
+
+-- Scheduled SQL Job to Capture Weekly Snapshots
+INSERT INTO WeeklyInventorySnapshots (SnapshotDate, ProductID, LocationID, InventoryCount)
+SELECT
+    CAST(GETDATE() AS DATE) AS SnapshotDate,
+    ProductID,
+    LocationID,
+    SUM(StockQuantity) AS InventoryCount
+FROM
+    Inventory
+WHERE
+    LastUpdated >= DATEADD(DAY, -7, CAST(GETDATE() AS DATE))
+GROUP BY
+    ProductID, LocationID;
