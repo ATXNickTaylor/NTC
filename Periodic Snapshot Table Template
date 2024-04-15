@@ -1,7 +1,8 @@
--- Create a Periodic Snapshot Fact Table
-IF NOT EXISTS (SELECT * FROM DB.Table WHERE name = 'TableNameHere')
+-- Check if the periodic snapshot fact table already exists
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WeeklyInventorySnapshots' AND type = 'U')
 BEGIN
-    CREATE TABLE TableNameHere (
+    -- Create the table if it does not exist
+    CREATE TABLE WeeklyInventorySnapshots (
         SnapshotDate DATE,
         ProductID INT,
         LocationID INT,
@@ -10,16 +11,17 @@ BEGIN
     );
 END;
 
--- Scheduled SQL Job to Capture Weekly Snapshots
+-- Insert data into the 'WeeklyInventorySnapshots' table
 INSERT INTO WeeklyInventorySnapshots (SnapshotDate, ProductID, LocationID, InventoryCount)
 SELECT
-    CAST(GETDATE() AS DATE) AS SnapshotDate,
-    ProductID,
-    LocationID,
-    SUM(StockQuantity) AS InventoryCount
+    CAST(GETDATE() AS DATE) AS SnapshotDate,  -- Today's date as the snapshot date
+    ProductID,                                -- The product ID from the inventory table
+    LocationID,                               -- The location ID from the inventory table
+    SUM(StockQuantity) AS InventoryCount      -- The total stock quantity for each product-location pair
 FROM
     InventoryTable
 WHERE
+    -- Only include records updated in the last week
     LastUpdated >= DATEADD(DAY, -7, CAST(GETDATE() AS DATE))
 GROUP BY
     ProductID, LocationID;
